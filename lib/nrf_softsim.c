@@ -16,9 +16,10 @@
 
 LOG_MODULE_REGISTER(softsim, CONFIG_SOFTSIM_LOG_LEVEL);
 
-#define SOFTSIM_STACK_SIZE 10000  // TODO: this is too much. Figure out some more reasonable value.
-#define SOFTSIM_PRIORITY 5        // TODO: What is a good balence here?
-K_THREAD_STACK_DEFINE(softsim_stack_area, SOFTSIM_STACK_SIZE);
+#define SOFTSIM_WORKQUEUE_NAME        "softsim_wq"
+#define SOFTSIM_WORKQUEUE_STACK_SIZE  CONFIG_SOFTSIM_STACK_SIZE
+#define SOFTSIM_WORKQUEUE_PRIORITY    5
+K_THREAD_STACK_DEFINE(softsim_stack_area, SOFTSIM_WORKQUEUE_STACK_SIZE);
 
 #define SIM_HAL_MAX_LE 260
 
@@ -27,9 +28,15 @@ int port_provision(struct ss_profile *profile);
 int port_check_provisioned(void);
 
 static struct k_work_q softsim_work_q;
+static const struct k_work_queue_config softsim_work_q_cfg = {
+    .name = SOFTSIM_WORKQUEUE_NAME,
+};
+
 static K_FIFO_DEFINE(softsim_req_fifo);
 static K_WORK_DEFINE(softsim_req_work, softsim_req_task);
 static uint8_t softsim_buffer_out[SIM_HAL_MAX_LE];
+
+
 
 // softsim handle
 struct ss_context *ctx = NULL;
@@ -87,8 +94,8 @@ int onomondo_init(void)
 
   k_work_queue_init(&softsim_work_q);
 
-  k_work_queue_start(&softsim_work_q, softsim_stack_area, K_THREAD_STACK_SIZEOF(softsim_stack_area), SOFTSIM_PRIORITY,
-                     NULL);
+  k_work_queue_start(&softsim_work_q, softsim_stack_area, K_THREAD_STACK_SIZEOF(softsim_stack_area), SOFTSIM_WORKQUEUE_PRIORITY,
+                     &softsim_work_q_cfg);
 
   ctx = ss_new_ctx();  // TODO: consider dropping this call here
 
